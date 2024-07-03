@@ -1,27 +1,18 @@
 package com.mellau.spring.jpa.h2.persistence;
 
 import com.mellau.spring.jpa.h2.common.enums.Sex;
-import lombok.Getter;
-import lombok.Setter;
-
+import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-
-import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "users")
-//@Accessors(chain = true)
-public class UserEntity  {
-
-    /*
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Table;*/
-
+public class UserEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private long id;
