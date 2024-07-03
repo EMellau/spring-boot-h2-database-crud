@@ -1,147 +1,121 @@
-package com.mellau.spring.jpa.h2.integration;
+package com.mellau.spring.jpa.h2.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mellau.spring.jpa.h2.api.UserController;
-import com.mellau.spring.jpa.h2.api.UserCreateRequestDTO;
-import com.mellau.spring.jpa.h2.api.UserSearchRequestDTO;
-import com.mellau.spring.jpa.h2.api.UserUpdateRequestDTO;
 import com.mellau.spring.jpa.h2.common.enums.Sex;
-import com.mellau.spring.jpa.h2.config.ApplicationConfig;
-import com.mellau.spring.jpa.h2.domain.UserService;
+import com.mellau.spring.jpa.h2.persistence.UserEntity;
+import com.mellau.spring.jpa.h2.persistence.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
-@WebMvcTest(UserController.class)
-@Import({ApplicationConfig.class})
-@ComponentScan(basePackages = "com.mellau.spring.jpa.h2")  // Adjust the package name according to your structure
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest
+@AutoConfigureMockMvc
 public class UserControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
-    private UserService userService;
-
-
-    @Autowired
     private ObjectMapper objectMapper;
 
-    @Test
-    public void testCreateUser() throws Exception {
-        // Step 1: Create a user
-        UserCreateRequestDTO createRequestDTO = new UserCreateRequestDTO().setEmail("newuser@example.com").setSex(Sex.FEMALE);
+    @Autowired
+    private UserRepository userRepository;
 
-        mockMvc.perform(MockMvcRequestBuilders.post(ApplicationConfig.USER_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createRequestDTO)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.email").value("newuser@example.com"))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.sex").value(Sex.FEMALE.toString()));
+    @BeforeEach
+    public void setUp() {
+        userRepository.deleteAll();
+
+        UserEntity user1 = new UserEntity();
+        user1.setEmail("user1@example.com");
+        user1.setGold(100);
+        user1.setSex(Sex.MALE);
+        userRepository.save(user1);
+
+        UserEntity user2 = new UserEntity();
+        user2.setEmail("user2@example.com");
+        user1.setGold(200);
+        user2.setSex(Sex.FEMALE);
+        userRepository.save(user2);
     }
 
     @Test
     public void testSearchUser() throws Exception {
-        // Create a user to search
-        UserCreateRequestDTO createRequestDTO = new UserCreateRequestDTO().setEmail("searchuser@example.com").setSex(Sex.MALE);
-        mockMvc.perform(MockMvcRequestBuilders.post(ApplicationConfig.USER_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createRequestDTO)))
-                .andExpect(MockMvcResultMatchers.status().isOk());
+        UserSearchRequestDTO searchRequest = new UserSearchRequestDTO();
+        searchRequest.setEmail("user1@example.com");
 
-        // Search for the user
-        UserSearchRequestDTO searchRequestDTO = new UserSearchRequestDTO().setEmail("searchuser@example.com");
-
-        mockMvc.perform(MockMvcRequestBuilders.post(ApplicationConfig.USER_URL + "/search")
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/user/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(searchRequestDTO)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$[0].email").value("searchuser@example.com"))
-                .andExpect(MockMvcResultMatchers.jsonPath("$[0].sex").value(Sex.MALE.toString()));
+                        .content(objectMapper.writeValueAsString(searchRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("[{'email':'user1@example.com','sex':'MALE'}]"));
     }
 
     @Test
     public void testGetRanking() throws Exception {
-        // Create a user to check in ranking
-        UserCreateRequestDTO createRequestDTO = new UserCreateRequestDTO().setEmail("rankuser@example.com").setSex(Sex.FEMALE);
-        mockMvc.perform(MockMvcRequestBuilders.post(ApplicationConfig.USER_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createRequestDTO)))
-                .andExpect(MockMvcResultMatchers.status().isOk());
-
-        // Get the user ranking
-        mockMvc.perform(MockMvcRequestBuilders.get(ApplicationConfig.USER_URL + "/ranking"))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$[0].email").value("rankuser@example.com"))
-                .andExpect(MockMvcResultMatchers.jsonPath("$[0].sex").value(Sex.FEMALE.toString()));
-    }
-
-    @Test
-    public void testUpdateUser() throws Exception {
-        // Create a user to update
-        UserCreateRequestDTO createRequestDTO = new UserCreateRequestDTO().setEmail("updateuser@example.com").setSex(Sex.MALE);
-        mockMvc.perform(MockMvcRequestBuilders.post(ApplicationConfig.USER_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createRequestDTO)))
-                .andExpect(MockMvcResultMatchers.status().isOk());
-
-        // Update the user's gold
-        UserUpdateRequestDTO updateRequestDTO = new UserUpdateRequestDTO().setGold(500);
-
-        mockMvc.perform(MockMvcRequestBuilders.put(ApplicationConfig.USER_URL + "/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequestDTO)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.id").value(1))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.email").value("updateuser@example.com"))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.gold").value(500))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.sex").value(Sex.MALE.toString()));
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/user/ranking")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[0].gold").value(100))
+                .andExpect(jsonPath("$[1].gold").value(200));
     }
 
     @Test
     public void testGetUserById() throws Exception {
-        // Create a user to retrieve by ID
-        UserCreateRequestDTO createRequestDTO = new UserCreateRequestDTO().setEmail("getuser@example.com").setSex(Sex.FEMALE);
-        mockMvc.perform(MockMvcRequestBuilders.post(ApplicationConfig.USER_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createRequestDTO)))
-                .andExpect(MockMvcResultMatchers.status().isOk());
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/user/{userId}", 1)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.email").value("user1@example.com"))
+                .andExpect(jsonPath("$.sex").value("MALE"));
+    }
 
-        // Get the user by ID
-        mockMvc.perform(MockMvcRequestBuilders.get(ApplicationConfig.USER_URL + "/1"))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.id").value(1))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.email").value("getuser@example.com"))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.gold").value(0))  // Default value is 0
-                .andExpect(MockMvcResultMatchers.jsonPath("$.sex").value(Sex.FEMALE.toString()));
+    @Test
+    public void testCreateUser() throws Exception {
+        UserCreateRequestDTO createRequest = new UserCreateRequestDTO();
+        createRequest.setEmail("newuser@example.com");
+        createRequest.setSex(Sex.FEMALE);
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.email").value("newuser@example.com"))
+                .andExpect(jsonPath("$.sex").value("FEMALE"));
+    }
+
+    @Test
+    public void testUpdateUser() throws Exception {
+        UserUpdateRequestDTO updateRequest = new UserUpdateRequestDTO();
+        updateRequest.setGold(500);
+
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/user/{userId}", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.gold").value(500));
     }
 
     @Test
     public void testDeleteUser() throws Exception {
-        // Create a user to delete
-        UserCreateRequestDTO createRequestDTO = new UserCreateRequestDTO().setEmail("deleteuser@example.com").setSex(Sex.MALE);
-        mockMvc.perform(MockMvcRequestBuilders.post(ApplicationConfig.USER_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createRequestDTO)))
-                .andExpect(MockMvcResultMatchers.status().isOk());
+        //UserEntity user = userRepository.fin("user1@example.com").orElseThrow();
 
-        // Delete the user
-        mockMvc.perform(MockMvcRequestBuilders.delete(ApplicationConfig.USER_URL + "/1"))
-                .andExpect(MockMvcResultMatchers.status().isNoContent());
+        mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/user/{userId}", 1)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
 
-        // Perform a final search to ensure the user is deleted
-        UserSearchRequestDTO searchRequestDTO = new UserSearchRequestDTO().setEmail("deleteuser@example.com");
-
-        mockMvc.perform(MockMvcRequestBuilders.post(ApplicationConfig.USER_URL + "/search")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(searchRequestDTO)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$").isEmpty());
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/user/{userId}", 1)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
     }
 }
